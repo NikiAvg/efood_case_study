@@ -1,0 +1,79 @@
+---- breakfast order per city
+with cities_more_1000_orders as (--- filter cities that exceed 1000 orders
+SELECT  city
+  ,count(DISTINCT ( case when  cuisine = 'Breakfast'then order_id end)) AS breakfast_orders
+  ,count(distinct order_id) as total_orders
+FROM `efood2022-353116.main_assessment.orders`
+GROUP BY city
+having count(distinct order_id) >1000)
+,
+--- get amount of order for all efood and breakfast
+amount as (
+SELECT  city
+  ,sum( ( case when  cuisine = 'Breakfast'then amount end)) AS breakfast_amount
+  ,sum( amount) as total_amount
+FROM `efood2022-353116.main_assessment.orders`
+GROUP BY city)
+,
+---get unique users for all efood and breakfast
+users as (
+SELECT  city
+  ,count(DISTINCT ( case when  cuisine = 'Breakfast'then user_id end)) AS breakfast_users
+  ,count(distinct user_id) as total_users
+FROM `efood2022-353116.main_assessment.orders`
+GROUP BY city)
+,
+---- find users that have ordered breakfast more than 3 times
+break_order_freq as 
+(select city,user_id
+ ,count(distinct order_id) as br_orders
+
+  FROM `efood2022-353116.main_assessment.orders`
+  where  cuisine = 'Breakfast'
+  group by city,user_id
+  having count(distinct order_id)>3 )
+,
+breakf_users3freq as (
+select city, 
+count (distinct user_id) as n_breakf_users3
+from break_order_freq
+group by city )
+,
+---- find users that have ordered more than 3 times
+all_order_freq as 
+(select city,user_id
+ ,count(distinct order_id) as br_orders
+  FROM `efood2022-353116.main_assessment.orders`
+  group by city,user_id
+  having count(distinct order_id)>3 )
+
+,total_users3freq as (
+select city, 
+count (distinct user_id) as n_total_users3
+from all_order_freq
+group by city )
+
+---final dataset limit to 5 cities with most breakfast orders
+select 
+ c.city
+---- ,breakfast_orders
+,breakfast_amount/breakfast_orders as breakfast_basket
+,total_amount/total_orders         as efood_basket
+,breakfast_orders/breakfast_users  as breakfast_freq
+,total_orders/total_users          as efood_freq
+,n_breakf_users3/breakfast_users   as breakf_users_3freq_perc
+,n_total_users3/total_users        as efood_users_3freq_perc
+from cities_more_1000_orders    c
+left join amount                a  on c.city=a.city
+left join users                 u  on c.city=u.city
+left join breakf_users3freq     b  on c.city=b.city
+left join total_users3freq      t  on c.city=t.city
+order by breakfast_orders desc
+limit 5
+
+
+----Comments
+----Breakfast is almost 60% of the total efood basket
+----For thetop 5 countries in terms of breakfast orders, the average breakfast frequenct is more than 3.6 orders vs 4,5 for total efood.
+----Volos has the highest number of breakfast orders, highest breakfast basket (63.3% over efood) and more than 31% of each breakfast users have ordered more than 3 times breakfast
+

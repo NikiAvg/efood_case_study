@@ -1,0 +1,35 @@
+-----------2nd query----
+with total_city_orders as (
+select city
+,count(distinct order_id) as total_city_orders 
+FROM `efood2022-353116.main_assessment.orders`
+group by city)
+
+ ,order_per_user as (
+ select city
+ ,user_id
+,count(distinct order_id) as user_city_orders
+FROM `efood2022-353116.main_assessment.orders`
+group by city,user_id
+ )
+ , ranked_cust AS
+ (
+select city,user_id,user_city_orders,  row_number () over (partition by city order by user_city_orders desc) as ranks
+from order_per_user
+ )
+ ,
+ top_10 as (
+ SELECT city,  sum(user_city_orders) as top_10_orders FROM ranked_cust
+  WHERE ranks <=10
+  group by city
+ )
+
+ select 
+ t.city
+ ,(top_10_orders/total_city_orders) as contribution
+ from top_10 t
+ left join total_city_orders o on t.city=o.city
+ order by (top_10_orders/total_city_orders) desc
+
+
+ 
